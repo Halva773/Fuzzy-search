@@ -7,24 +7,33 @@
 4. Настроить веб-сокеты для отображения состояния загрузки корпусов в режиме реального времени.
 
 Эндпоинты:
-- POST /upload_corpus (загрузка текста)
+- POST @app.post("/upload_corpus") # Загружает корпус текста для индексации и поиска.
   - Шаблон:
 ```
+Пример запроса:
 {
-  "name": "Название корпуса",
-  "documents": [
-    {
-      "title": "Документ 1",
-      "content": "Текст первого документа."
-    },
-    {
-      "title": "Документ 2",
-      "content": "Текст второго документа."
-    }
+  "corpus_name": "example_corpus",
+  "text": "This is a sample text for the corpus."
+}
+```
+  - Пример ответа:
+```
+{
+  "corpus_id": 1,
+  "message": "Corpus uploaded successfully"
+}
+```
+
+- GET /corpuses (список корпусов)
+  - Пример ответа:
+```
+{
+  "corpuses": [
+    {"id": 1, "name": "example_corpus"},
+    {"id": 2, "name": "another_corpus"}
   ]
 }
 ```
-- GET /corpuses (список корпусов)
 
 Требования:
 - Тексты хранить в SQLite с помощью SQLAlchemy.
