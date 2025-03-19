@@ -15,6 +15,21 @@ def get_corpus(corpus_id):
         data_loaded = json.loads(stored_data)
         print(data_loaded)
 
+
+def get_all_corpuses():
+    corpuses = []
+    # Получаем все ключи из Redis, предполагая, что все ключи соответствуют корпусам.
+    for key in r.keys('*'):
+        stored_data = r.get(key)
+        if stored_data:
+            data_loaded = json.loads(stored_data)
+            # Добавляем только необходимые поля в результирующий список
+            corpuses.append({
+                "id": data_loaded.get("id"),
+                "name": data_loaded.get("corpus_name")
+            })
+    return corpuses
+
 if __name__ == '__main__':
     corpus = {
         "id": 1,

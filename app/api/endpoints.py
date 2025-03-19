@@ -1,7 +1,8 @@
 import uuid
 
 from fastapi import FastAPI, HTTPException
-from app.services.corpus import New_corpus
+from services.corpus import New_corpus
+from db.redis_db import redis_connection as red
 
 app = FastAPI(
     title="Fuzzy Search",
@@ -22,13 +23,11 @@ def is_alive():
 def upload_corpus(new_corpus: New_corpus):
     try:
         corpus_id = str(uuid.uuid4())
-        corpus = {
+        red.load_corpus({
             "id": corpus_id,
             "corpus_name": new_corpus.corpus_name,
             "text": new_corpus.text
-        }
-
-
+        })
         return {
             "corpus_id": corpus_id,
             "message": "Corpus uploaded successfully"
@@ -43,9 +42,6 @@ def upload_corpus(new_corpus: New_corpus):
          tags=['Корпуса текстов'],
          summary='Получить все корпуса текстов')
 def get_corpuses():
-    corpuses_list = [
-        {"id": 1, "name": "example_corpus"},
-        {"id": 2, "name": "another_corpus"}
-    ]
+    corpuses_list = red.get_all_corpuses()
     return {"corpuses": corpuses_list}
 
