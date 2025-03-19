@@ -1,5 +1,7 @@
 # Нечеткий поиск
 
+![Alt](https://repobeats.axiom.co/api/embed/d548e6048342d76888356f912d6991d3a418b5ae.svg "Repobeats analytics image")
+
 ## Этапы реализации
 
 1. Базовая реализация с использованием HTTP-протоколов (GET, POST)
