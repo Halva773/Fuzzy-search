@@ -1,5 +1,7 @@
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, Text, Index, inspect, insert
 
+from app.services.config import DATABASE_URL
+
 
 class SingletonWordTable:
     _instance = None
@@ -30,15 +32,9 @@ class SingletonWordTable:
             print("Таблица 'words' не существовала, поэтому создана новая таблица.")
 
 
-    def add_word(self, word: str) -> None:
-        stmt = insert(self.table).values(text=word)
-        with self.engine.begin() as connection:
-            connection.execute(stmt)
-
+engine = create_engine(DATABASE_URL)
+word_table = SingletonWordTable(engine)
 
 # Пример использования:
 if __name__ == '__main__':
-    engine = create_engine("sqlite:///words_storage.db")
     word_table1 = SingletonWordTable(engine)
-
-    word_table1.add_word("шея")
