@@ -1,6 +1,6 @@
 from sqlalchemy import insert
-from app.db.sqlalchemy_config import SingletonWordTable
-from app.db.sqlalchemy_config import engine, word_table
+from db.sqlalchemy_config import SingletonWordTable
+from db.sqlalchemy_config import engine, word_table
 
 class WordService:
     def __init__(self, engine, word_table: SingletonWordTable):

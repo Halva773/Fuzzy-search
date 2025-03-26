@@ -1,8 +1,10 @@
 import uuid
 
 from fastapi import FastAPI, HTTPException
-from services.corpus import New_corpus
-from db.redis_db import redis_connection as red
+from schemas.corpus import New_corpus
+from db import redis_connection as red
+from services.text_processing import text_processing
+from cruds.user import User
 
 app = FastAPI(
     title="Fuzzy Search",
@@ -28,6 +30,9 @@ def upload_corpus(new_corpus: New_corpus):
             "corpus_name": new_corpus.corpus_name,
             "text": new_corpus.text
         })
+
+        text_processing(corpus_id, new_corpus.text)
+
         return {
             "corpus_id": corpus_id,
             "message": "Corpus uploaded successfully"
@@ -44,4 +49,36 @@ def upload_corpus(new_corpus: New_corpus):
 def get_corpuses():
     corpuses_list = red.get_all_corpuses()
     return {"corpuses": corpuses_list}
+
+
+@app.post("/sign-up/",
+          tags=["Аккаунт"],
+          summary="Проверка и регистрация пользователя по email")
+def sign_up(new_user: User):
+    """
+    Проверяет, не зарегистрирован ли уже пользователь с таким email. Если нет, создает нового пользователя и генерирует
+    для него токен. Возвращает данные созданного пользователя.
+
+    Пример запроса:
+    {
+        "email": "user@example.com",
+        "password": "securepassword123"
+    }
+
+    Пример ответа:
+    {
+        "id": 1,
+        "email": "user@example.com",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    :return:
+    """
+    # Проверяем, существует ли уже пользователь
+    if user_exists(request.email):
+        raise HTTPException(status_code=400, detail="Пользователь уже зарегистрирован")
+    # Создаем нового пользователя
+    new_user = create_user(request.email, request.password)
+    # Генерируем токен, например, включая идентификатор пользователя в payload
+    token = create_access_token(data={"user_id": new_user.id})
+    return {"id": new_user.id, "email": new_user.email, "token": token}
 

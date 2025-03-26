@@ -1,12 +1,12 @@
 import re
 from dataclasses import dataclass
-from app.db.sqlalchemy_config import word_table, engine
-from app.models.word import WordService
+from db.sqlalchemy_config import word_table, engine
+from models.word import WordService
 
 
 @dataclass(frozen=True)
 class TextProcessing:
-    text_id: str
+    text_name: str
     text: str
     """
     Класс для обработки корпуса текста: разбиение на слова, удаление знаков препинания
@@ -15,7 +15,7 @@ class TextProcessing:
     Для экономии памяти используется генератор, который по одному возвращает слова.
     """
 
-    def split_text(self):
+    def _split_text(self):
         """
         Разбивает текст на слова, удаляя знаки препинания.
         Возвращает генератор, который выдаёт слова в нижнем регистре.
@@ -30,12 +30,14 @@ class TextProcessing:
         :param word_table: экземпляр класса для работы с таблицей слов (например, SingletonWordTable)
         """
         db = WordService(engine, word_table)
-        for word in self.split_text():
+        for word in self._split_text():
             db.add_word(word)
 
 
+def text_processing(text_id, corpus):
+    text = TextProcessing(text_id, corpus)
+    text.save_words_to_db(word_table)
+
 if __name__ == '__main__':
     text = TextProcessing(1, "текст? большой/маленький!")
-    validate_text = text.split_text()
-    print(list(validate_text))
     text.save_words_to_db(word_table)
