@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 
 from db.database import init_db
@@ -8,10 +8,11 @@ from db.database import init_db
 # from db import redis_connection as red
 # from services.text_processing import text_processing
 
-from schemas.auth import SignUpRequest
+from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
-from services.auth import create_access_token
+from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
+
 
 app = FastAPI(
     title="Fuzzy Search",
@@ -63,7 +64,7 @@ def is_alive():
 @app.post("/sign-up/",
           tags=["Аккаунт"],
           summary="Проверка и регистрация пользователя по email")
-def sign_up(request: SignUpRequest, db: Session = Depends(get_db)):
+def sign_up(request: SignUpRequest, response: Response, db: Session = Depends(get_db)):
     """
     Проверяет, не зарегистрирован ли уже пользователь с таким email. Если нет, создает нового пользователя и генерирует
     для него токен. Возвращает данные созданного пользователя.
@@ -81,21 +82,18 @@ def sign_up(request: SignUpRequest, db: Session = Depends(get_db)):
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     }
     """
-    # Проверяем, существует ли уже пользователь
     if user_exists(db, request.email):
         return HTTPException(status_code=400, detail="Пользователь уже зарегистрирован")
-    print("User not exists")
-    # Создаем нового пользователя
     new_user = create_user(db, request)
-    # Генерируем токен, например, включая идентификатор пользователя в payload
     token = create_access_token(data={"user_id": new_user.user_id})
+    response.set_cookie(key="access_token", value=token, httponly=True)
     return {"id": new_user.user_id, "email": new_user.email, "token": token}
 
 
 @app.post("/login/",
           tags=['Аккаунт'],
           summary="Вход в аккаунт")
-def login(request: SignUpRequest, db: Session = Depends(get_db)):
+def login(request: SignUpRequest, response: Response, db: Session = Depends(get_db)):
     """
     Проверяет существование пользователя с указанным email. Проверяет правильность введенного пароля. Если все верно, генерирует новый токен для пользователя. Возвращает данные пользователя с новым токеном.
 
@@ -116,9 +114,30 @@ def login(request: SignUpRequest, db: Session = Depends(get_db)):
     if not bool(user):
         return HTTPException(status_code=401, detail="Неправильные данные для входа")
     token = create_access_token(data={"user_id": user.user_id})
+    response.set_cookie(key="access_token", value=token, httponly=True)
 
-    return     {
+    return{
         "id": user.user_id,
         "email": user.email,
         "token": token
     }
+
+
+@app.get(
+    "/users/me/",
+    response_model=UserResponse,
+    tags=["Аккаунт"],
+    summary="Получение информации о текущем пользователе"
+)
+def read_current_user(current_user=Depends(get_current_user)):
+    """
+    Возвращает данные авторизованного пользователя.
+    Для доступа требуется передать токен в заголовке Authorization.
+
+    Пример ответа:
+    {
+      "id": 1,
+      "email": "user@example.com"
+    }
+    """
+    return current_user
