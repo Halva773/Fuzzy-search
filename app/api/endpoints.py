@@ -9,7 +9,7 @@ from db.database import init_db
 # from services.text_processing import text_processing
 
 from schemas.auth import SignUpRequest
-from cruds.user_crud import user_exists, create_user
+from cruds.user_crud import user_exists, create_user, get_user_access
 from services.auth import create_access_token
 from db.__init__ import get_db
 
@@ -22,10 +22,10 @@ app = FastAPI(
 
 init_db()
 
+
 @app.get("/ping")
 def is_alive():
     return "pong"
-
 
 
 # @app.post("/upload_corpus",
@@ -90,3 +90,35 @@ def sign_up(request: SignUpRequest, db: Session = Depends(get_db)):
     # Генерируем токен, например, включая идентификатор пользователя в payload
     token = create_access_token(data={"user_id": new_user.user_id})
     return {"id": new_user.user_id, "email": new_user.email, "token": token}
+
+
+@app.post("/login/",
+          tags=['Аккаунт'],
+          summary="Вход в аккаунт")
+def login(request: SignUpRequest, db: Session = Depends(get_db)):
+    """
+    Проверяет существование пользователя с указанным email. Проверяет правильность введенного пароля. Если все верно, генерирует новый токен для пользователя. Возвращает данные пользователя с новым токеном.
+
+    Пример запроса:
+    {
+        "email": "user@example.com",
+        "password": "securepassword123"
+    }
+
+    Пример ответа:
+    {
+        "id": 1,
+        "email": "user@example.com",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    """
+    user = get_user_access(db, request)
+    if not bool(user):
+        return HTTPException(status_code=401, detail="Неправильные данные для входа")
+    token = create_access_token(data={"user_id": user.user_id})
+
+    return     {
+        "id": user.user_id,
+        "email": user.email,
+        "token": token
+    }
