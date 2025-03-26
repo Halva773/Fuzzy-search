@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from db.sqlalchemy_config import word_table, engine
+from db.database import word_table, engine
 from models.word import WordService
 
 
@@ -34,7 +34,7 @@ class TextProcessing:
             db.add_word(word)
 
 
-def text_processing(text_id, corpus):
+def text_processing(db, text_id, corpus):
     text = TextProcessing(text_id, corpus)
     text.save_words_to_db(word_table)
 
