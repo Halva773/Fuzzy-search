@@ -1,16 +1,12 @@
-import uuid
-
 from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 
 from db.database import init_db
-# from schemas.corpus import New_corpus
-# from db import redis_connection as red
-# from services.text_processing import text_processing
+from models.corpus import Corpus
 
 from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
-from schemas.corpus import New_corpus
+from schemas.corpus import NewCorpus, CorpusesResponse
 from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
 from services.text_processing import add_corpus, add_words
@@ -116,7 +112,7 @@ def read_current_user(current_user=Depends(get_current_user)):
 @app.post("/upload_corpus",
           tags=["Corpuses"],
           summary="Загружает корпус текста для индексации и поиска")
-def upload_corpus(request: New_corpus, db: Session = Depends(get_db)):
+def upload_corpus(request: NewCorpus, db: Session = Depends(get_db)):
     """
     Загружает корпус текста для индексации и поиска.
 
@@ -137,3 +133,23 @@ def upload_corpus(request: New_corpus, db: Session = Depends(get_db)):
         "corpus_id": corpus.corpus_id,
         "message": "Corpus uploaded successfully"
     }
+
+
+@app.get("/corpuses",
+         tags=["Corpuses"],
+         summary="Получить список корпусов текста",
+         response_model=CorpusesResponse)
+def get_corpuses(db: Session = Depends(get_db)):
+    """
+    Возвращает список корпусов с идентификаторами и названиями.
+
+    Пример ответа:
+    {
+      "corpuses": [
+         {"id": 1, "name": "example_corpus"},
+         {"id": 2, "name": "another_corpus"}
+      ]
+    }
+    """
+    corpuses = db.query(Corpus).all()
+    return {"corpuses": corpuses}
