@@ -1,43 +1,19 @@
 import re
-from dataclasses import dataclass
+from typing import Any, Generator
 
-from celery.worker.state import requests
 from sqlalchemy.orm import Session
 
 from models.corpus import Corpus
+from models.word import Word
 
 
-@dataclass(frozen=True)
-class TextProcessing:
-    text_name: str
-    text: str
+def split_text(text: str) -> Generator[str, Any, None]:
     """
-    Класс для обработки корпуса текста: разбиение на слова, удаление знаков препинания
-    и запись полученных слов в базу данных.
-
-    Для экономии памяти используется генератор, который по одному возвращает слова.
+    Разбивает текст на слова, удаляя знаки препинания.
+    Возвращает генератор, который выдаёт слова в нижнем регистре.
     """
-
-    def _split_text(self):
-        """
-        Разбивает текст на слова, удаляя знаки препинания.
-        Возвращает генератор, который выдаёт слова в нижнем регистре.
-        """
-        pattern = re.compile(r'\b\w+\b', re.UNICODE)
-        return (match.group().lower() for match in pattern.finditer(self.text))
-
-    def save_words_to_db(self, db):
-        """
-        Записывает каждое слово, полученное из split_text(), в базу данных.
-
-        """
-        for word in self._split_text():
-            db.add_word(word)
-
-
-def text_processing(db, text_id, corpus):
-    text = TextProcessing(text_id, corpus)
-    text.save_words_to_db(db)
+    pattern = re.compile(r'\b\w+\b', re.UNICODE)
+    return (match.group().lower() for match in pattern.finditer(text))
 
 
 def add_corpus(db: Session, request: Corpus):
@@ -46,3 +22,14 @@ def add_corpus(db: Session, request: Corpus):
     db.commit()
     db.refresh(new_corpus)
     return new_corpus
+
+
+def add_words(db: Session, corpus_id: int, text: str):
+    words = split_text(text)
+    # Можно добавить фильтрацию для удаления пустых строк или нежелательных символов
+    for word in words:
+        if word:  # если слово не пустое
+            new_word = Word(corpus_id=corpus_id, word=word)
+            db.add(new_word)
+            # db.refresh(new_word)
+    db.commit()
