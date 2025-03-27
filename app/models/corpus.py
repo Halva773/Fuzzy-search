@@ -6,4 +6,4 @@ class Corpus(Base):
     __tablename__ = "corpus"
 
     corpus_id = Column(Integer, primary_key=True, index=True)
-    corpus_name = Column(String, nullable=False)
+    corpus_name = Column(String, nullable=False, unique=True)

@@ -1,18 +1,15 @@
-import uuid
-
 from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 
 from db.database import init_db
-# from schemas.corpus import New_corpus
-# from db import redis_connection as red
-# from services.text_processing import text_processing
+from models.corpus import Corpus
 
 from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
+from schemas.corpus import NewCorpus, CorpusesResponse
 from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
-
+from services.text_processing import add_corpus, add_words
 
 app = FastAPI(
     title="Fuzzy Search",
@@ -24,45 +21,14 @@ app = FastAPI(
 init_db()
 
 
-@app.get("/ping")
+@app.get("/ping",
+         tags=["Check status"])
 def is_alive():
     return "pong"
 
 
-# @app.post("/upload_corpus",
-#           tags=["Корпуса текстов"],
-#           summary="Загрузка корпуса текста")
-# def upload_corpus(new_corpus: New_corpus, db: Session = Depends(get_db)):
-#     try:
-#         corpus_id = str(uuid.uuid4())
-#         red.load_corpus({
-#             "id": corpus_id,
-#             "corpus_name": new_corpus.corpus_name,
-#             "text": new_corpus.text
-#         })
-#
-#         text_processing(db, corpus_id, new_corpus.text)
-#
-#         return {
-#             "corpus_id": corpus_id,
-#             "message": "Corpus uploaded successfully"
-#         }
-#     except Exception as e:
-#         return HTTPException(status_code=400, detail=str(e))
-#
-#
-#
-#
-# @app.get("/corpuses",
-#          tags=['Корпуса текстов'],
-#          summary='Получить все корпуса текстов')
-# def get_corpuses():
-#     corpuses_list = red.get_all_corpuses()
-#     return {"corpuses": corpuses_list}
-
-
 @app.post("/sign-up/",
-          tags=["Аккаунт"],
+          tags=["Accounts"],
           summary="Проверка и регистрация пользователя по email")
 def sign_up(request: SignUpRequest, response: Response, db: Session = Depends(get_db)):
     """
@@ -91,7 +57,7 @@ def sign_up(request: SignUpRequest, response: Response, db: Session = Depends(ge
 
 
 @app.post("/login/",
-          tags=['Аккаунт'],
+          tags=['Accounts'],
           summary="Вход в аккаунт")
 def login(request: SignUpRequest, response: Response, db: Session = Depends(get_db)):
     """
@@ -116,7 +82,7 @@ def login(request: SignUpRequest, response: Response, db: Session = Depends(get_
     token = create_access_token(data={"user_id": user.user_id})
     response.set_cookie(key="access_token", value=token, httponly=True)
 
-    return{
+    return {
         "id": user.user_id,
         "email": user.email,
         "token": token
@@ -126,12 +92,12 @@ def login(request: SignUpRequest, response: Response, db: Session = Depends(get_
 @app.get(
     "/users/me/",
     response_model=UserResponse,
-    tags=["Аккаунт"],
+    tags=["Accounts"],
     summary="Получение информации о текущем пользователе"
 )
 def read_current_user(current_user=Depends(get_current_user)):
-    """
-    Возвращает данные авторизованного пользователя.
+    """Возвращает данные авторизованного пользователя.
+
     Для доступа требуется передать токен в заголовке Authorization.
 
     Пример ответа:
@@ -141,3 +107,49 @@ def read_current_user(current_user=Depends(get_current_user)):
     }
     """
     return current_user
+
+
+@app.post("/upload_corpus",
+          tags=["Corpuses"],
+          summary="Загружает корпус текста для индексации и поиска")
+def upload_corpus(request: NewCorpus, db: Session = Depends(get_db)):
+    """
+    Загружает корпус текста для индексации и поиска.
+
+    Пример запроса:
+    {
+        "corpus_name": "example_corpus",
+        "text": "This is a sample text for the corpus."
+    }
+    Пример ответа:
+    {
+        "corpus_id": 1,
+        "message": "Corpus uploaded successfully"
+    }
+    """
+    corpus = add_corpus(db, request)
+    add_words(db, corpus.corpus_id, request.text)
+    return {
+        "corpus_id": corpus.corpus_id,
+        "message": "Corpus uploaded successfully"
+    }
+
+
+@app.get("/corpuses",
+         tags=["Corpuses"],
+         summary="Получить список корпусов текста",
+         response_model=CorpusesResponse)
+def get_corpuses(db: Session = Depends(get_db)):
+    """
+    Возвращает список корпусов с идентификаторами и названиями.
+
+    Пример ответа:
+    {
+      "corpuses": [
+         {"id": 1, "name": "example_corpus"},
+         {"id": 2, "name": "another_corpus"}
+      ]
+    }
+    """
+    corpuses = db.query(Corpus).all()
+    return {"corpuses": corpuses}

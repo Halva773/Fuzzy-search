@@ -1,17 +1,12 @@
-from sqlalchemy import insert
+from sqlalchemy import Column, Integer, String, ForeignKey
+from db.database import Base
 
-class WordService:
-
-    def add_word(self, db, word: str) -> None:
-        """
-        Добавляет слово в таблицу.
-        Функция принимает строку, формирует SQL-запрос для вставки и выполняет его.
-        """
-        stmt = insert(self.word_table_manager.table).values(text=word)
-        with self.engine.begin() as connection:
-            connection.execute(stmt)
+class Word(Base):
+    __tablename__ = "word"
+    word_id = Column(Integer, primary_key=True, autoincrement=True)
+    corpus_id = Column(Integer, ForeignKey("corpus.corpus_id"), nullable=False)
+    word = Column(String, nullable=False)
 
 
 if __name__ == '__main__':
-    db = WordService()
-    db.add_word("слоны")
+    pass
