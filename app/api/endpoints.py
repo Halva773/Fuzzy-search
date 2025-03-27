@@ -10,9 +10,10 @@ from db.database import init_db
 
 from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
+from schemas.corpus import New_corpus
 from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
-
+from services.text_processing import TextProcessing, add_corpus
 
 app = FastAPI(
     title="Fuzzy Search",
@@ -141,3 +142,26 @@ def read_current_user(current_user=Depends(get_current_user)):
     }
     """
     return current_user
+
+
+@app.post("/upload_corpus")
+def upload_corpus(request: New_corpus, db: Session = Depends(get_db)):
+    """
+    Загружает корпус текста для индексации и поиска.
+
+    Пример запроса:
+    {
+        "corpus_name": "example_corpus",
+        "text": "This is a sample text for the corpus."
+    }
+    Пример ответа:
+    {
+        "corpus_id": 1,
+        "message": "Corpus uploaded successfully"
+    }
+    """
+    corpus = add_corpus(db, request)
+    return {
+        "corpus_id": corpus.corpus_id,
+        "message": "Corpus uploaded successfully"
+    }

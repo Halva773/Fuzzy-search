@@ -1,7 +1,10 @@
 import re
 from dataclasses import dataclass
-from db.database import word_table, engine
-from models.word import WordService
+
+from celery.worker.state import requests
+from sqlalchemy.orm import Session
+
+from models.corpus import Corpus
 
 
 @dataclass(frozen=True)
@@ -23,21 +26,23 @@ class TextProcessing:
         pattern = re.compile(r'\b\w+\b', re.UNICODE)
         return (match.group().lower() for match in pattern.finditer(self.text))
 
-    def save_words_to_db(self, word_table):
+    def save_words_to_db(self, db):
         """
         Записывает каждое слово, полученное из split_text(), в базу данных.
 
-        :param word_table: экземпляр класса для работы с таблицей слов (например, SingletonWordTable)
         """
-        db = WordService(engine, word_table)
         for word in self._split_text():
             db.add_word(word)
 
 
 def text_processing(db, text_id, corpus):
     text = TextProcessing(text_id, corpus)
-    text.save_words_to_db(word_table)
+    text.save_words_to_db(db)
 
-if __name__ == '__main__':
-    text = TextProcessing(1, "текст? большой/маленький!")
-    text.save_words_to_db(word_table)
+
+def add_corpus(db: Session, request: Corpus):
+    new_corpus = Corpus(corpus_name=request.corpus_name)
+    db.add(new_corpus)
+    db.commit()
+    db.refresh(new_corpus)
+    return new_corpus
