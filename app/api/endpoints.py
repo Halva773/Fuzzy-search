@@ -7,6 +7,7 @@ from models.corpus import Corpus
 from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
 from schemas.corpus import NewCorpus, CorpusesResponse
+from schemas.fuzzy_search import RequestModel
 from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
 from services.text_processing import add_corpus, add_words
@@ -153,3 +154,29 @@ def get_corpuses(db: Session = Depends(get_db)):
     """
     corpuses = db.query(Corpus).all()
     return {"corpuses": corpuses}
+
+
+@app.post("/search_algorithm",
+          tags=['Fuzzy search'],
+          summary="Алгоритмы 'Расстояние Левенштейна' и '' для нечёткого поиска")
+def search_algorithm(request: RequestModel, db: Session = Depends(get_db)):
+    """
+    Позволяет указать слово (для поиска), тип алгоритма (которым можно искать), корпус (который можно использовать) и возвращает время работы алгоритма + результат поиска.
+
+    Пример запроса:
+    {
+        "word": "example",
+        "algorithm": "levenshtein",
+        "corpus_id": 1
+    }
+
+    Пример ответа:
+    {
+        "execution_time": 0.0023,
+            "results": [
+            {"word": "example", "distance": 0},
+            {"word": "sample", "distance": 2}
+            ]
+    }
+    """
+
