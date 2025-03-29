@@ -10,6 +10,7 @@ from schemas.corpus import NewCorpus, CorpusesResponse
 from schemas.fuzzy_search import RequestModel
 from services.auth import create_access_token, get_current_user
 from db.__init__ import get_db
+from services.fuzzy_search.run_search import run_search_algorithm
 from services.text_processing import add_corpus, add_words
 
 app = FastAPI(
@@ -179,4 +180,11 @@ def search_algorithm(request: RequestModel, db: Session = Depends(get_db)):
             ]
     }
     """
+    words, time = run_search_algorithm(request, db)
+    if words == False:
+        return HTTPException(status_code=401, detail="Этот алгоритм не подключён к приложению")
+    return {
+        "execution_time": time,
+        "results": words
+    }
 
