@@ -187,4 +187,3 @@ def search_algorithm(request: RequestModel, db: Session = Depends(get_db)):
         "execution_time": time,
         "results": words
     }
-
