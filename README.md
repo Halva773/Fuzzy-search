@@ -2,6 +2,21 @@
 
 ![Alt](https://repobeats.axiom.co/api/embed/d548e6048342d76888356f912d6991d3a418b5ae.svg "Repobeats analytics image")
 
+## Запуск через Docker
+
+1. 
+```bash
+git clone https://github.com/Halva773/Fuzzy-search.git # Клонирование репозитория
+cd Fuzzy-search # Переходим в папку с проектом
+cp .env.example .env # Создаём файл .env на основе примера
+```
+Файл .env используется в проекте, но не опубликован на гите. Примером файла служит .env.exmaple. После создания можете поменять необходимые вам ключи и переменные
+
+```bash
+docker build . -t fuzzy-search
+docker run -p 8000:8000 -t fuzzy-search
+```
+
 ## Этапы реализации
 
 1. Базовая реализация с использованием HTTP-протоколов (GET, POST)
