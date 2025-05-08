@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from db.database import init_db
 from models.corpus import Corpus
+from models.user import User
 
 from schemas.auth import SignUpRequest, UserResponse
 from cruds.user_crud import user_exists, create_user, get_user_access
@@ -114,9 +115,14 @@ def read_current_user(current_user=Depends(get_current_user)):
 @app.post("/upload_corpus",
           tags=["Corpuses"],
           summary="Загружает корпус текста для индексации и поиска")
-def upload_corpus(request: NewCorpus, db: Session = Depends(get_db)):
+def upload_corpus(
+    request: NewCorpus,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Загружает корпус текста для индексации и поиска.
+    Требуется авторизация.
 
     Пример запроса:
     {
@@ -141,9 +147,13 @@ def upload_corpus(request: NewCorpus, db: Session = Depends(get_db)):
          tags=["Corpuses"],
          summary="Получить список корпусов текста",
          response_model=CorpusesResponse)
-def get_corpuses(db: Session = Depends(get_db)):
+def get_corpuses(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Возвращает список корпусов с идентификаторами и названиями.
+    Требуется авторизация.
 
     Пример ответа:
     {
@@ -160,9 +170,14 @@ def get_corpuses(db: Session = Depends(get_db)):
 @app.post("/search_algorithm",
           tags=['Fuzzy search'],
           summary="Алгоритмы 'Расстояние Левенштейна' и '' для нечёткого поиска")
-def search_algorithm(request: RequestModel, db: Session = Depends(get_db)):
+def search_algorithm(
+    request: RequestModel,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Позволяет указать слово (для поиска), тип алгоритма (которым можно искать), корпус (который можно использовать) и возвращает время работы алгоритма + результат поиска.
+    Требуется авторизация.
 
     Пример запроса:
     {
