@@ -1,17 +1,19 @@
+from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 
+from celery_app import celery_app
+from cruds.user_crud import user_exists, create_user, get_user_access
+from db.__init__ import get_db
 from db.database import init_db
 from models.corpus import Corpus
 from models.user import User
-
 from schemas.auth import SignUpRequest, UserResponse
-from cruds.user_crud import user_exists, create_user, get_user_access
 from schemas.corpus import NewCorpus, CorpusesResponse
 from schemas.fuzzy_search import RequestModel
 from services.auth import create_access_token, get_current_user
-from db.__init__ import get_db
 from services.fuzzy_search.run_search import run_search_algorithm
+from services.task import fuzzy_search_task
 from services.text_processing import add_corpus, add_words
 
 app = FastAPI(
@@ -116,9 +118,9 @@ def read_current_user(current_user=Depends(get_current_user)):
           tags=["Corpuses"],
           summary="Загружает корпус текста для индексации и поиска")
 def upload_corpus(
-    request: NewCorpus,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        request: NewCorpus,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     """
     Загружает корпус текста для индексации и поиска.
@@ -148,8 +150,8 @@ def upload_corpus(
          summary="Получить список корпусов текста",
          response_model=CorpusesResponse)
 def get_corpuses(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     """
     Возвращает список корпусов с идентификаторами и названиями.
@@ -171,9 +173,9 @@ def get_corpuses(
           tags=['Fuzzy search'],
           summary="Алгоритмы 'Расстояние Левенштейна' и '' для нечёткого поиска")
 def search_algorithm(
-    request: RequestModel,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        request: RequestModel,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     """
     Позволяет указать слово (для поиска), тип алгоритма (которым можно искать), корпус (который можно использовать) и возвращает время работы алгоритма + результат поиска.
@@ -201,4 +203,72 @@ def search_algorithm(
     return {
         "execution_time": time,
         "results": words
+    }
+
+
+@app.post("/search_async", tags=['Fuzzy search'], summary="Асинхронный нечёткий поиск")
+def search_async(
+        request: RequestModel,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user)
+):
+    """
+    Запускает задачу поиска асинхронно и возвращает task_id.
+    """
+    task = fuzzy_search_task.apply_async(
+        args=[request.word, request.algorithm, request.corpus_id]
+    )
+    return {
+        "status": "STARTED",
+        "task_id": task.id,
+        "word": request.word,
+        "algorithm": request.algorithm
+    }
+
+
+@app.get("/tasks/{task_id}", tags=['Fuzzy search'], summary="Статус задачи Celery")
+def get_task_status(
+        task_id: str,
+        current_user=Depends(get_current_user)
+):
+    """
+    Возвращает текущее состояние задачи и, если есть, прогресс или результат.
+    """
+    async_result = AsyncResult(task_id, app=celery_app)
+    state = async_result.state
+
+    if state == 'PENDING':
+        return {"status": "PENDING", "task_id": task_id}
+
+    if state == 'STARTED':
+        meta = async_result.info or {}
+        return {
+            "status": "STARTED",
+            "task_id": task_id,
+            **{k: v for k, v in meta.items() if k in ("word", "algorithm")}
+        }
+
+    if state == 'PROGRESS':
+        meta = async_result.info or {}
+        return {
+            "status": "PROGRESS",
+            "task_id": task_id,
+            "progress": meta.get("progress"),
+            "current_word": meta.get("current_word")
+        }
+
+    if state == 'SUCCESS':
+        result = async_result.get()
+        return {
+            "status": "COMPLETED",
+            "task_id": task_id,
+            "execution_time": result["execution_time"],
+            "results": result["results"]
+        }
+
+    # FAILURE or другие состояния
+    return {
+        "status": state,
+        "task_id": task_id,
+        "error": str(async_result.info)
     }
